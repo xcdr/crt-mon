@@ -1,0 +1,120 @@
+zabbix_export:
+  version: '6.0'
+  date: '2023-08-30T19:04:28Z'
+  groups:
+    - uuid: 7df96b18c230490a9a0a9e2307226338
+      name: Templates
+  templates:
+    - uuid: fb7541c4897849178936be51e4f33f39
+      template: CRT-MON
+      name: CRT-MON
+      description: 'Template for https://github.com/xcdr/crt-mon'
+      groups:
+        - name: Templates
+      items:
+        - uuid: ca1cfa09cdd24a5e97760dc665940fd4
+          name: 'Check crt-mon metrics'
+          type: HTTP_AGENT
+          key: crt-mon_metrics
+          history: '0'
+          trends: '0'
+          value_type: TEXT
+          url: 'http://{$CRT_MON.HOST}:{$CRT_MON.PORT}/metrics'
+      discovery_rules:
+        - uuid: 34e81a7fe99e4ed2a4e0f4e7bd27d700
+          name: 'Discovery crt-mon'
+          type: DEPENDENT
+          key: crt_mon
+          delay: '0'
+          lifetime: 24h
+          item_prototypes:
+            - uuid: 5df273009823476e96da90f160df34d2
+              name: 'Certificate check error of: {#HOST} on {#ADDRESS}'
+              type: DEPENDENT
+              key: 'crt_mon[check_error:{#ADDRESS}_{#HOST}]'
+              delay: '0'
+              value_type: FLOAT
+              valuemap:
+                name: check_errors
+              preprocessing:
+                - type: PROMETHEUS_PATTERN
+                  parameters:
+                    - 'crt_mon_check_error{address="{#ADDRESS}",host="{#HOST}"}'
+                    - value
+                    - ''
+              master_item:
+                key: crt-mon_metrics
+              trigger_prototypes:
+                - uuid: 388eb75df42e4eb884da7011bd7520d5
+                  expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])<>0'
+                  name: 'Certificate check error for: {#HOST} on: {#ADDRESS}'
+                  opdata: '{ITEM.LASTVALUE1}'
+                  priority: HIGH
+            - uuid: 7bc3eb4c35bb4875a43fc49f4287efa4
+              name: 'Certificate elapsed days of: {#HOST} on {#ADDRESS}'
+              type: DEPENDENT
+              key: 'crt_mon[elapsed_days:{#ADDRESS}_{#HOST}]'
+              delay: '0'
+              value_type: FLOAT
+              preprocessing:
+                - type: PROMETHEUS_PATTERN
+                  parameters:
+                    - 'crt_mon_elapsed_days{address="{#ADDRESS}",host="{#HOST}"}'
+                    - value
+                    - ''
+              master_item:
+                key: crt-mon_metrics
+              trigger_prototypes:
+                - uuid: c489de04e4064163822c578d50d347b6
+                  expression: 'last(/CRT-MON/crt_mon[elapsed_days:{#ADDRESS}_{#HOST}])< 0'
+                  name: 'Certificate expired for: {#HOST} on: {#ADDRESS}'
+                  opdata: 'Left days: {ITEM.LASTVALUE1}'
+                  priority: DISASTER
+                  dependencies:
+                    - name: 'Certificate check error for: {#HOST} on: {#ADDRESS}'
+                      expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])<>0'
+                - uuid: ce787c29c08c4fc386f172abc09f94bd
+                  expression: 'last(/CRT-MON/crt_mon[elapsed_days:{#ADDRESS}_{#HOST}])<{$CRT_MON.HIGH}'
+                  name: 'Certificate expiry days < {$CRT_MON.HIGH} for: {#HOST} on: {#ADDRESS}'
+                  opdata: 'Left days: {ITEM.LASTVALUE1}'
+                  priority: HIGH
+                  dependencies:
+                    - name: 'Certificate check error for: {#HOST} on: {#ADDRESS}'
+                      expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])<>0'
+                - uuid: 8f0f7e6a8a984c0bb24d6357e1559d7d
+                  expression: 'last(/CRT-MON/crt_mon[elapsed_days:{#ADDRESS}_{#HOST}])<{$CRT_MON.WARN}'
+                  name: 'Certificate expiry days < {$CRT_MON.WARN} for: {#HOST} on: {#ADDRESS}'
+                  opdata: 'Left days: {ITEM.LASTVALUE1}'
+                  priority: WARNING
+                  dependencies:
+                    - name: 'Certificate check error for: {#HOST} on: {#ADDRESS}'
+                      expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])<>0'
+          master_item:
+            key: crt-mon_metrics
+          lld_macro_paths:
+            - lld_macro: '{#ADDRESS}'
+              path: '$.labels[''address'']'
+            - lld_macro: '{#HOST}'
+              path: '$.labels[''host'']'
+          preprocessing:
+            - type: PROMETHEUS_TO_JSON
+              parameters:
+                - '{__name__=~"^crt_mon_.+$"}'
+      macros:
+        - macro: '{$CRT_MON.HIGH}'
+          value: '7'
+        - macro: '{$CRT_MON.HOST}'
+          value: 127.0.0.1
+        - macro: '{$CRT_MON.PORT}'
+          value: '2112'
+        - macro: '{$CRT_MON.WARN}'
+          value: '14'
+      valuemaps:
+        - uuid: 24c9416d4ab44c7db8a0007140643500
+          name: check_errors
+          mappings:
+            - value: '0'
+              newvalue: 'No error'
+            - type: GREATER_OR_EQUAL
+              value: '1'
+              newvalue: 'Connection error'
