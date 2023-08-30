@@ -4,7 +4,7 @@ After=network-online.target
 
 [Service]
 Restart=always
-ExecStart=/opt/bin/crt-mon -file=/opt/etc/crt-hosts.conf
+ExecStart=/opt/bin/crt-mon -file=/opt/etc/crt-hosts.yml
 ExecReload=kill -HUP $MAINPID
 
 [Install]
