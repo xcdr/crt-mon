@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-go@v2.1.4
         with:
           # The Go version to download (if necessary) and use. Supports semver spec and ranges.
-          go-version: 1.17
+          go-version: 1.21
 
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout project
@@ -72,3 +72,12 @@ jobs:
           asset_name: linux-arm64.tar.gz
           asset_content_type: application/gzip
 
+      - name: Upload darwin-arm64 artifacts
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.make_release.outputs.upload_url }}
+          asset_path: ./build/darwin-arm64.tar.gz
+          asset_name: darwin-arm64.tar.gz
+          asset_content_type: application/gzip

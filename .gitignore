@@ -2,3 +2,4 @@ build/*
 
 *.exe
 *.conf
+test-domains.yml

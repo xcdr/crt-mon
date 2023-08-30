@@ -28,7 +28,7 @@ type metricsServer struct {
 	elapsedDays *prometheus.GaugeVec
 	checkError  *prometheus.GaugeVec
 	options     *config.Options
-	hosts       []certexp.HostInfo
+	domains     []certexp.Domain
 	httpServer  http.Server
 }
 
@@ -84,11 +84,11 @@ func (s *metricsServer) stopHTTP() {
 }
 
 func (s *metricsServer) loadConfig() error {
-	hosts, err := config.Parse(*s.options.ConfigFile)
+	domains, err := config.Parse(*s.options.ConfigFile)
 
 	if err == nil {
-		s.hosts = *hosts
-		log.Printf("Loaded %d hosts from: %s", cap(s.hosts), *s.options.ConfigFile)
+		s.domains = *domains
+		log.Printf("Loaded %d hosts from: %s", cap(s.domains), *s.options.ConfigFile)
 	}
 
 	return err
@@ -106,19 +106,23 @@ func (s *metricsServer) startWorker(interval int) error {
 		for {
 			counter := 0
 
-			for elem, host := range s.hosts {
-				var check *certexp.Check = certexp.NewCheck(host)
+			for elem, domain := range s.domains {
+				domain.Resolve(*s.options.CheckIPv6)
 
-				if err := check.Expiration(*s.options.CheckIPv6); err != nil {
-					log.Printf("Expiration check error: %v", err)
+				for _, addr := range domain.Addresses {
+					var check *certexp.Check = certexp.NewCheck(certexp.HostInfo{Name: domain.Name, Address: addr, Port: domain.Port})
+
+					if err := check.Expiration(); err != nil {
+						log.Printf("Expiration check error: %v", err)
+					}
+
+					for _, res := range check.Result {
+						s.elapsedDays.WithLabelValues(check.Host.Name, res.Address.String()).Set(float64(res.Expiry.Days))
+						s.checkError.WithLabelValues(check.Host.Name, res.Address.String()).Set(float64(res.Error.Code))
+					}
+
+					counter = elem + 1
 				}
-
-				for _, res := range check.Result {
-					s.elapsedDays.WithLabelValues(check.Host.Name, res.Address.String()).Set(float64(res.Expiry.Days))
-					s.checkError.WithLabelValues(check.Host.Name, res.Address.String()).Set(float64(res.Error.Code))
-				}
-
-				counter = elem + 1
 			}
 
 			log.Printf("Processed: %d hosts, sleeping for %v minutes\n", counter, interval)

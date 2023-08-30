@@ -1,11 +1,12 @@
 package config
 
 import (
-	"bufio"
 	"crt-mon/pkg/certexp"
 	"flag"
+	"log"
 	"os"
-	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Options struct {
@@ -19,35 +20,28 @@ func NewOptions() *Options {
 
 func (o *Options) CommonFlags() {
 	o.CheckIPv6 = flag.Bool("6", false, "Check IPv6")
-	o.ConfigFile = flag.String("file", "/opt/etc/crt-hosts.conf", "File contains hosts list")
+	o.ConfigFile = flag.String("file", "/opt/etc/crt-hosts.yml", "File contains hosts list")
 }
 
-func Parse(configFile string) (*[]certexp.HostInfo, error) {
-	var hosts []certexp.HostInfo
+func Parse(configFile string) (*[]certexp.Domain, error) {
+	var domains []certexp.Domain
 
-	file, err := os.Open(configFile)
+	data, err := os.ReadFile(configFile)
 
 	if err != nil {
 		return nil, err
 	}
 
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-
-		if err := scanner.Err(); err != nil {
-			return nil, err
-		}
-
-		if len(line) == 0 || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		hosts = append(hosts, certexp.HostInfo{Name: line, Port: 443})
+	if err := yaml.Unmarshal(data, &domains); err != nil {
+		log.Printf("Config error: %v", err)
+		return nil, err
 	}
 
-	return &hosts, nil
+	for i := 0; i < len(domains); i++ {
+		if domains[i].Port == 0 {
+			domains[i].Port = 443
+		}
+	}
+
+	return &domains, nil
 }

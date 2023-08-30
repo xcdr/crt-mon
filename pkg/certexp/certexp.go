@@ -29,9 +29,17 @@ type ProcessResult struct {
 	Error   ExpirationError
 }
 
+type Domain struct {
+	Name        string   `yaml:"domain"`
+	Addresses   []net.IP `yaml:"addresses"`
+	Port        int      `yaml:"port"`
+	SkipResolve bool     `yaml:"skip_resolve"`
+}
+
 type HostInfo struct {
-	Port int
-	Name string
+	Name    string
+	Address net.IP
+	Port    int
 }
 
 type Check struct {
@@ -43,60 +51,71 @@ func NewCheck(host HostInfo) *Check {
 	return &Check{Host: host}
 }
 
-func (check *Check) Expiration(IPv6 bool) error {
+func (d *Domain) Resolve(IPv6 bool) error {
+	var error ExpirationError
+
+	if !d.SkipResolve {
+		addresses, err := net.LookupIP(d.Name)
+
+		if err != nil {
+			error.Code = 4
+			error.Message = err.Error()
+
+			return &error
+		}
+
+		for _, addr := range addresses {
+			if addr.To4() == nil && !IPv6 {
+				// Skip IPv6 addresses
+				continue
+			}
+
+			d.Addresses = append(d.Addresses, addr)
+		}
+	}
+
+	return nil
+}
+
+func (check *Check) Expiration() error {
 	var error ExpirationError
 	var today time.Time = time.Now()
-
-	addresses, err := net.LookupIP(check.Host.Name)
-	if err != nil {
-		error.Code = 4
-		error.Message = err.Error()
-
-		return &error
-	}
 
 	cfg := &tls.Config{
 		InsecureSkipVerify: false,
 		ServerName:         check.Host.Name}
 
-	for _, addr := range addresses {
-		if addr.To4() == nil && IPv6 == false {
-			// Skip IPv6 addresses
-			continue
-		}
+	var expiry ExpirationDetail
 
-		var expiry ExpirationDetail
+	error.Code = 0
+	error.Message = ""
 
-		error.Code = 0
-		error.Message = ""
+	conn, err := tls.Dial("tcp", fmt.Sprintf("[%s]:%d", check.Host.Address.String(), check.Host.Port), cfg)
 
-		conn, err := tls.Dial("tcp", fmt.Sprintf("[%s]:%d", addr.String(), check.Host.Port), cfg)
+	if err != nil {
+		error.Code = 3
+		error.Message = err.Error()
+	} else {
+		// Must be deferred only after error handled and connected!
+		defer conn.Close()
 
+		err = conn.VerifyHostname(check.Host.Name)
 		if err != nil {
-			error.Code = 3
+			error.Code = 2
 			error.Message = err.Error()
 		} else {
-			// Must be deferred only after error handled and connected!
-			defer conn.Close()
+			expiry.Date = conn.ConnectionState().PeerCertificates[0].NotAfter
+			expiry.Days = int(expiry.Date.Sub(today).Hours() / 24)
+			expiry.Subject = conn.ConnectionState().PeerCertificates[0].Subject.String()
+			expiry.Issuer = conn.ConnectionState().PeerCertificates[0].Issuer.String()
 
-			err = conn.VerifyHostname(check.Host.Name)
-			if err != nil {
-				error.Code = 2
-				error.Message = err.Error()
-			} else {
-				expiry.Date = conn.ConnectionState().PeerCertificates[0].NotAfter
-				expiry.Days = int(expiry.Date.Sub(today).Hours() / 24)
-				expiry.Subject = conn.ConnectionState().PeerCertificates[0].Subject.String()
-				expiry.Issuer = conn.ConnectionState().PeerCertificates[0].Issuer.String()
-
-				if expiry.Days <= 0 {
-					error.Code = 1
-				}
+			if expiry.Days <= 0 {
+				error.Code = 1
 			}
 		}
-
-		check.Result = append(check.Result, ProcessResult{Address: addr, Expiry: expiry, Error: error})
 	}
+
+	check.Result = append(check.Result, ProcessResult{Address: check.Host.Address, Expiry: expiry, Error: error})
 
 	return nil
 }

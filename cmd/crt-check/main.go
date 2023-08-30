@@ -53,25 +53,28 @@ func main() {
 
 	fmt.Printf("%s started, version: %s+%s, author: %s\n", program, version, build, author)
 
-	hosts, err := config.Parse(*options.ConfigFile)
+	domains, err := config.Parse(*options.ConfigFile)
 
 	if err != nil {
 		fmt.Printf("Unexpected error: %v\n", err)
 		os.Exit(1)
 	}
 
-	for _, host := range *hosts {
-		var check *certexp.Check = certexp.NewCheck(host)
+	for _, domain := range *domains {
+		domain.Resolve(*options.CheckIPv6)
 
-		if err := check.Expiration(*options.CheckIPv6); err != nil {
-			fmt.Printf("Expiration check error: %v\n", err)
+		for _, addr := range domain.Addresses {
+			var check *certexp.Check = certexp.NewCheck(certexp.HostInfo{Name: domain.Name, Address: addr, Port: domain.Port})
+
+			if err := check.Expiration(); err != nil {
+				fmt.Printf("Expiration check error: %v\n", err)
+			}
+
+			checkedItems = append(checkedItems, *check)
 		}
-
-		checkedItems = append(checkedItems, *check)
 	}
 
 	printResult(&checkedItems, *numDays)
 
 	os.Exit(0)
-
 }

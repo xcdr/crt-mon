@@ -1,0 +1,20 @@
+---
+ # Example domain for simple check with DNS resolve
+- domain: example.net
+
+# Example domains that doesn't exists (generates error)
+- domain: nonexists.net
+
+ # Example domain for check by defined and DNS resolved addresses
+- domain: foo-bar.com
+  skip_resolve: false
+  addresses:
+    - 203.0.113.1
+    - 203.0.113.2
+
+# Example domain for check by defined addresses without DNS resolving
+- domain: foo-baz.com
+  skip_resolve: true
+  addresses:
+    - 203.0.113.3
+    - 203.0.113.4
