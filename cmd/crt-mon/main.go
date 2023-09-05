@@ -95,16 +95,17 @@ func (s *metricsServer) loadConfig() error {
 }
 
 func (s *metricsServer) startWorker(interval int) error {
-	var err error
-
-	err = s.loadConfig()
-	if err != nil {
+	if err := s.loadConfig(); err != nil {
 		return err
 	}
 
 	go func() {
 		for {
 			counter := 0
+
+			// Reset counters because this is simpliest way to remove unused domains or addresses
+			s.elapsedDays.Reset()
+			s.checkError.Reset()
 
 			for elem, domain := range s.domains {
 				domain.Resolve(*s.options.CheckIPv6)
