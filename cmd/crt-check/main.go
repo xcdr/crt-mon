@@ -17,43 +17,75 @@ var (
 )
 
 func printResult(checkedItems *[]certexp.Check, numDays int) {
-	if numDays == 0 {
-		fmt.Printf("\nAll certificates:\n")
-	} else {
-		fmt.Printf("\nCertificates with expiration lower than %d days:\n", numDays)
-	}
+	var displayResult []string
 
 	for _, check := range *checkedItems {
 		for _, res := range check.Result {
 			if res.Error.Code <= 1 && (numDays == 0 || res.Expiry.Days < numDays) {
-				fmt.Printf("\n- Domain: %s [%s:%d]\n", check.Host.Name, res.Address, check.Host.Port)
+
+				displayString := fmt.Sprintf("\n- Domain: %s [%s:%d]\n", check.Host.Name, res.Address, check.Host.Port)
+
 				if res.Expiry.Days < 0 {
-					fmt.Printf("  Expired: %d", -1*res.Expiry.Days)
+					displayString += fmt.Sprintf("  Expired: %d", -1*res.Expiry.Days)
 
 					if res.Expiry.Days == -1 {
-						fmt.Print(" day ago")
+						displayString += " day ago"
 					} else {
-						fmt.Print(" days ago")
+						displayString += " days ago"
 					}
 				} else {
-					fmt.Printf("  Expires in: %d", res.Expiry.Days)
+					displayString += fmt.Sprintf("  Expires in: %d", res.Expiry.Days)
 
 					if res.Expiry.Days == 1 {
-						fmt.Print(" day")
+						displayString += " day"
 					} else {
-						fmt.Print(" days")
+						displayString += " days"
 					}
 				}
-				fmt.Printf(":\n  * Issuer: %s\n  * Expiry: %v\n  * Subject: %v\n",
-					res.Expiry.Issuer, res.Expiry.Date.Format(time.RFC850), res.Expiry.Subject)
-			}
 
-			if res.Error.Code > 1 {
-				fmt.Printf("\n- Domain: %s [%s:%d]\n", check.Host.Name, res.Address, check.Host.Port)
-				fmt.Printf("  Error: %v\n", res.Error.Message)
+				displayString += fmt.Sprintf(":\n  * Issuer: %s\n  * Expiry: %v\n  * Subject: %v",
+					res.Expiry.Issuer, res.Expiry.Date.Format(time.RFC850), res.Expiry.Subject)
+
+				displayResult = append(displayResult, displayString)
 			}
 		}
 	}
+
+	if len(displayResult) > 0 {
+		if numDays == 0 {
+			fmt.Printf("\nAll certificates:\n")
+		} else {
+			fmt.Printf("\nCertificates with expiration lower than %d days:\n", numDays)
+		}
+
+		for _, item := range displayResult {
+			fmt.Println(item)
+		}
+	} else {
+		fmt.Printf("\nThere is no certificates with expiration lower than %d days.\n", numDays)
+	}
+
+	displayResult = nil
+
+	for _, check := range *checkedItems {
+		for _, res := range check.Result {
+			if res.Error.Code > 1 {
+				displayString := fmt.Sprintf("\n- Domain: %s [%s:%d]\n", check.Host.Name, res.Address, check.Host.Port)
+				displayString += fmt.Sprintf("  Error: %v", res.Error.Message)
+				displayResult = append(displayResult, displayString)
+			}
+		}
+	}
+
+	if len(displayResult) > 0 {
+		fmt.Printf("\nCheck with errors:\n")
+
+		for _, item := range displayResult {
+			fmt.Println(item)
+		}
+	}
+
+	fmt.Println()
 }
 
 func main() {
