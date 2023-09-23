@@ -7,6 +7,15 @@ import (
 	"time"
 )
 
+// Represents details of check.
+type ExpirationDetail struct {
+	Issuer  string
+	Subject string
+	Date    time.Time
+	Days    int
+}
+
+// Represents expiration error message and code.
 type ExpirationError struct {
 	Message string
 	Code    int
@@ -16,19 +25,7 @@ func (e *ExpirationError) Error() string {
 	return e.Message
 }
 
-type ExpirationDetail struct {
-	Issuer  string
-	Subject string
-	Date    time.Time
-	Days    int
-}
-
-type ProcessResult struct {
-	Address net.IP
-	Expiry  ExpirationDetail
-	Error   ExpirationError
-}
-
+// Domain represents info about domain parsed from config file and its addresses.
 type Domain struct {
 	Name        string   `yaml:"domain"`
 	Addresses   []net.IP `yaml:"addresses"`
@@ -36,21 +33,11 @@ type Domain struct {
 	SkipResolve bool     `yaml:"skip_resolve"`
 }
 
-type HostInfo struct {
-	Name    string
-	Address net.IP
-	Port    int
-}
+/*
+Resolves DNS records for domain.
 
-type Check struct {
-	Host   HostInfo
-	Result []ProcessResult
-}
-
-func NewCheck(host HostInfo) *Check {
-	return &Check{Host: host}
-}
-
+- IPv6: when false resolves only IPv4 addresses.
+*/
 func (d *Domain) Resolve(IPv6 bool) error {
 	var error ExpirationError
 
@@ -77,7 +64,33 @@ func (d *Domain) Resolve(IPv6 bool) error {
 	return nil
 }
 
-func (check *Check) Expiration() error {
+// Represents info about checked host.
+type HostInfo struct {
+	Name    string
+	Address net.IP
+	Port    int
+}
+
+// Represents result of check against single IP.
+type CheckResult struct {
+	Address net.IP
+	Expiry  ExpirationDetail
+	Error   ExpirationError
+}
+
+// Represents list of check results for host.
+type Check struct {
+	Host   HostInfo
+	Result []CheckResult
+}
+
+// Returns new check for specified host.
+func NewCheck(host HostInfo) *Check {
+	return &Check{Host: host}
+}
+
+// Verify expiration against checked host.
+func (check *Check) Process() error {
 	var error ExpirationError
 	var today time.Time = time.Now()
 
@@ -115,7 +128,7 @@ func (check *Check) Expiration() error {
 		}
 	}
 
-	check.Result = append(check.Result, ProcessResult{Address: check.Host.Address, Expiry: expiry, Error: error})
+	check.Result = append(check.Result, CheckResult{Address: check.Host.Address, Expiry: expiry, Error: error})
 
 	return nil
 }

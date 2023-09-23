@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Represents options specified at command line.
 type Options struct {
 	CheckIPv6  *bool
 	ConfigFile *string
@@ -23,6 +24,7 @@ func (o *Options) CommonFlags() {
 	o.ConfigFile = flag.String("file", "/opt/etc/crt-hosts.yml", "File contains hosts list")
 }
 
+// Parse config file and return list of domains.
 func Parse(configFile string) (*[]certexp.Domain, error) {
 	var domains []certexp.Domain
 

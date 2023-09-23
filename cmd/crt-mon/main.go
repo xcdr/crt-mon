@@ -24,6 +24,7 @@ var (
 	author  = "undefined"
 )
 
+// Represents metrics server that's expose Prometheus metrics.
 type metricsServer struct {
 	elapsedDays *prometheus.GaugeVec
 	checkError  *prometheus.GaugeVec
@@ -32,13 +33,13 @@ type metricsServer struct {
 	httpServer  http.Server
 }
 
+// Returns instance of metrics server.
 func newMetricsServer(address string, port int, options *config.Options) *metricsServer {
 	srv := metricsServer{
 		httpServer: http.Server{Addr: fmt.Sprintf("%s:%d", address, port)},
 	}
 
 	srv.options = options
-	// srv.hosts = make([]certexp.HostInfo, 0)
 
 	srv.elapsedDays = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "crt_mon_elapsed_days",
@@ -64,6 +65,7 @@ func newMetricsServer(address string, port int, options *config.Options) *metric
 	return &srv
 }
 
+// Start metrics server.
 func (s *metricsServer) startHTTP() {
 	log.Printf("HTTP server starting at: %s\n", s.httpServer.Addr)
 
@@ -72,6 +74,7 @@ func (s *metricsServer) startHTTP() {
 	}
 }
 
+// Stop metrics server.
 func (s *metricsServer) stopHTTP() {
 	log.Printf("Stopping HTTP server")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -83,6 +86,7 @@ func (s *metricsServer) stopHTTP() {
 	}
 }
 
+// Load config file.
 func (s *metricsServer) loadConfig() error {
 	domains, err := config.Parse(*s.options.ConfigFile)
 
@@ -94,6 +98,7 @@ func (s *metricsServer) loadConfig() error {
 	return err
 }
 
+// Start asynchronous worker that's check hosts and update metrics.
 func (s *metricsServer) startWorker(interval int) error {
 	if err := s.loadConfig(); err != nil {
 		return err
@@ -113,7 +118,7 @@ func (s *metricsServer) startWorker(interval int) error {
 				for _, addr := range domain.Addresses {
 					var check *certexp.Check = certexp.NewCheck(certexp.HostInfo{Name: domain.Name, Address: addr, Port: domain.Port})
 
-					if err := check.Expiration(); err != nil {
+					if err := check.Process(); err != nil {
 						log.Printf("Expiration check error: %v", err)
 					}
 
@@ -134,6 +139,11 @@ func (s *metricsServer) startWorker(interval int) error {
 	return nil
 }
 
+/*
+Pretty handles unix signals:
+- SIGHUP reload config file
+- other signals force stop servers
+*/
 func signalHandler(signalChan chan os.Signal, server *metricsServer) {
 	for {
 		sig := <-signalChan
@@ -163,18 +173,23 @@ func main() {
 
 	log.Printf("Process %s started, version: %s+%s, author: %s\n", program, version, build, author)
 
+	// Register what unix signals should be handled
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
+	// Initialize instance of metrics server
 	srv := newMetricsServer("0.0.0.0", *port, options)
 
+	// Launch coroutine that's listen for unix signals
 	go signalHandler(signalChan, srv)
 
+	// Start update worker
 	if err := srv.startWorker(10); err != nil {
 		log.Printf("Unexpected error: %v", err)
 		log.Printf("Process %s stopped\n", program)
 		os.Exit(1)
 	}
 
+	// Start HTTP server
 	srv.startHTTP()
 
 	log.Printf("Process %s stopped\n", program)

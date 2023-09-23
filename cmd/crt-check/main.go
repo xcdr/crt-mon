@@ -16,6 +16,7 @@ var (
 	author  = "undefined"
 )
 
+// Print result of all checks.
 func printResult(checkedItems *[]certexp.Check, numDays int) {
 	var displayResult []string
 
@@ -105,7 +106,7 @@ func main() {
 	domains, err := config.Parse(*options.ConfigFile)
 
 	if err != nil {
-		fmt.Printf("Unexpected error: %v\n", err)
+		fmt.Printf("Runtime error: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -115,7 +116,7 @@ func main() {
 		for _, addr := range domain.Addresses {
 			var check *certexp.Check = certexp.NewCheck(certexp.HostInfo{Name: domain.Name, Address: addr, Port: domain.Port})
 
-			if err := check.Expiration(); err != nil {
+			if err := check.Process(); err != nil {
 				fmt.Printf("Expiration check error: %v\n", err)
 			}
 

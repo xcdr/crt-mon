@@ -1,5 +1,5 @@
 AUTHOR			= Adam Kubica <xcdr@kaizen-step.com>
-BUILD_VERSION	= 0.2.0-beta
+BUILD_VERSION	= 0.2.1-rc
 BUILD_BRANCH	= $(shell git rev-parse --abbrev-ref HEAD)
 BUILD_DATE		= $(shell date +%Y%m%d%H%M)
 
@@ -48,8 +48,12 @@ build: build_linux-amd64 build_linux-arm64 build_darwin-arm64
 	cp example.yml ${BUILD_DIR}/etc
 
 artifacts: build
+	cp install/systemd/crt-mon.service ${BUILD_DIR}/linux-amd64/
 	cd ${BUILD_DIR} && tar czf linux-amd64.tar.gz -C linux-amd64 bin ../etc
+
+	cp install/systemd/crt-mon.service ${BUILD_DIR}/linux-arm64/
 	cd ${BUILD_DIR} && tar czf linux-arm64.tar.gz -C linux-arm64 bin ../etc
+
 	cd ${BUILD_DIR} && tar czf darwin-arm64.tar.gz -C darwin-arm64 bin ../etc
 
 clean:
