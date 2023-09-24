@@ -25,7 +25,7 @@ func (e *ExpirationError) Error() string {
 	return e.Message
 }
 
-// Domain represents info about domain parsed from config file and its addresses.
+// Represents info about domain parsed from config file and its addresses.
 type Domain struct {
 	Name        string   `yaml:"domain"`
 	Addresses   []net.IP `yaml:"addresses"`
