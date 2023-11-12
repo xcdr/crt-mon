@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -41,12 +42,17 @@ Resolves DNS records for domain.
 func (d *Domain) Resolve(IPv6 bool) error {
 	var error ExpirationError
 
+	if d.Name == "" {
+		return nil
+	}
+
 	if !d.SkipResolve {
 		addresses, err := net.LookupIP(d.Name)
 
 		if err != nil {
 			error.Code = 4
 			error.Message = err.Error()
+			d.Addresses = append(d.Addresses, nil)
 
 			return &error
 		}
@@ -100,14 +106,32 @@ func (check *Check) Process() error {
 
 	var expiry ExpirationDetail
 
+	if check.Host.Address == nil {
+		error.Code = 4
+		error.Message = "domain resolve error"
+		check.Result = append(check.Result, CheckResult{Address: check.Host.Address, Expiry: expiry, Error: error})
+
+		return nil
+	}
+
 	error.Code = 0
 	error.Message = ""
 
 	conn, err := tls.Dial("tcp", fmt.Sprintf("[%s]:%d", check.Host.Address.String(), check.Host.Port), cfg)
 
 	if err != nil {
-		error.Code = 3
-		error.Message = err.Error()
+		switch {
+		case strings.Contains(err.Error(), "connect: network is unreachable"):
+			error.Code = 3
+			error.Message = "connect: network is unreachable"
+		case strings.Contains(err.Error(), "tls: failed to verify certificate:"):
+			error.Code = 2
+			error.Message = strings.Replace(err.Error(), "tls: failed to verify certificate: ", "", 1)
+		default:
+			error.Code = 5
+			error.Message = err.Error()
+		}
+
 	} else {
 		// Must be deferred only after error handled and connected!
 		defer conn.Close()

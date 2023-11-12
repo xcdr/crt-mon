@@ -115,6 +115,13 @@ zabbix_export:
           mappings:
             - value: '0'
               newvalue: 'No error'
-            - type: GREATER_OR_EQUAL
-              value: '1'
+            - value: '1'
+              newvalue: 'Certificate expired'
+            - value: '2'
+              newvalue: 'Certificate error'
+            - value: '3'
               newvalue: 'Connection error'
+            - value: '4'
+              newvalue: 'Domain resolve error'
+            - value: '5'
+              newvalue: 'Unknown error'

@@ -71,8 +71,13 @@ func printResult(checkedItems *[]certexp.Check, numDays int) {
 	for _, check := range *checkedItems {
 		for _, res := range check.Result {
 			if res.Error.Code > 1 {
-				displayString := fmt.Sprintf("\n- Domain: %s [%s:%d]\n", check.Host.Name, res.Address, check.Host.Port)
-				displayString += fmt.Sprintf("  Error: %v", res.Error.Message)
+				displayString := fmt.Sprintf("\n- Domain: %s", check.Host.Name)
+
+				if res.Address != nil {
+					displayString += fmt.Sprintf(" [%s:%d]", res.Address, check.Host.Port)
+				}
+
+				displayString += fmt.Sprintf("\n  Error (%d): %v", res.Error.Code, res.Error.Message)
 				displayResult = append(displayResult, displayString)
 			}
 		}

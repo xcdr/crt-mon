@@ -123,8 +123,13 @@ func (s *metricsServer) startWorker(interval int) error {
 					}
 
 					for _, res := range check.Result {
-						s.elapsedDays.WithLabelValues(check.Host.Name, res.Address.String()).Set(float64(res.Expiry.Days))
-						s.checkError.WithLabelValues(check.Host.Name, res.Address.String()).Set(float64(res.Error.Code))
+						address_label := res.Address.String()
+						if res.Address == nil {
+							address_label = "unknown"
+						}
+
+						s.elapsedDays.WithLabelValues(check.Host.Name, address_label).Set(float64(res.Expiry.Days))
+						s.checkError.WithLabelValues(check.Host.Name, address_label).Set(float64(res.Error.Code))
 					}
 
 					counter = elem + 1

@@ -1,5 +1,5 @@
 AUTHOR			= Adam Kubica <xcdr@kaizen-step.com>
-BUILD_VERSION	= 0.2.1-rc
+BUILD_VERSION	= 0.2.2-rc
 BUILD_BRANCH	= $(shell git rev-parse --abbrev-ref HEAD)
 BUILD_DATE		= $(shell date +%Y%m%d%H%M)
 
