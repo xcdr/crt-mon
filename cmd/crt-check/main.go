@@ -121,7 +121,7 @@ func main() {
 		for _, addr := range domain.Addresses {
 			var check *certexp.Check = certexp.NewCheck(certexp.HostInfo{Name: domain.Name, Address: addr, Port: domain.Port})
 
-			if err := check.Process(); err != nil {
+			if err := check.Process(*options.Timeout); err != nil {
 				fmt.Printf("Expiration check error: %v\n", err)
 			}
 

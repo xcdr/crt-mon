@@ -96,7 +96,7 @@ func NewCheck(host HostInfo) *Check {
 }
 
 // Verify expiration against checked host.
-func (check *Check) Process() error {
+func (check *Check) Process(timeout int) error {
 	var error ExpirationError
 	var today time.Time = time.Now()
 
@@ -117,8 +117,8 @@ func (check *Check) Process() error {
 	error.Code = 0
 	error.Message = ""
 
-	conn, err := tls.Dial("tcp", fmt.Sprintf("[%s]:%d", check.Host.Address.String(), check.Host.Port), cfg)
-
+	// conn, err := tls.Dial("tcp", fmt.Sprintf("[%s]:%d", check.Host.Address.String(), check.Host.Port), cfg)
+	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: time.Duration(timeout) * time.Second}, "tcp", fmt.Sprintf("[%s]:%d", check.Host.Address.String(), check.Host.Port), cfg)
 	if err != nil {
 		switch {
 		case strings.Contains(err.Error(), "connect: network is unreachable"):

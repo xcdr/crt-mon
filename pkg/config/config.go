@@ -13,6 +13,7 @@ import (
 type Options struct {
 	CheckIPv6  *bool
 	ConfigFile *string
+	Timeout    *int
 }
 
 func NewOptions() *Options {
@@ -22,6 +23,7 @@ func NewOptions() *Options {
 func (o *Options) CommonFlags() {
 	o.CheckIPv6 = flag.Bool("6", false, "Check IPv6")
 	o.ConfigFile = flag.String("file", "/opt/etc/crt-hosts.yml", "File contains hosts list")
+	o.Timeout = flag.Int("timeout", 15, "Check timeout")
 }
 
 // Parse config file and return list of domains.

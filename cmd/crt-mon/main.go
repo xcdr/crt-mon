@@ -118,7 +118,7 @@ func (s *metricsServer) startWorker(interval int) error {
 				for _, addr := range domain.Addresses {
 					var check *certexp.Check = certexp.NewCheck(certexp.HostInfo{Name: domain.Name, Address: addr, Port: domain.Port})
 
-					if err := check.Process(); err != nil {
+					if err := check.Process(*s.options.Timeout); err != nil {
 						log.Printf("Expiration check error: %v", err)
 					}
 
