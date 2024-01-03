@@ -29,6 +29,7 @@ func (o *Options) CommonFlags() {
 // Parse config file and return list of domains.
 func Parse(configFile string) (*[]certexp.Domain, error) {
 	var domains []certexp.Domain
+	var tmp []certexp.Domain
 
 	data, err := os.ReadFile(configFile)
 
@@ -36,14 +37,18 @@ func Parse(configFile string) (*[]certexp.Domain, error) {
 		return nil, err
 	}
 
-	if err := yaml.Unmarshal(data, &domains); err != nil {
+	if err := yaml.Unmarshal(data, &tmp); err != nil {
 		log.Printf("Config error: %v", err)
 		return nil, err
 	}
 
-	for i := 0; i < len(domains); i++ {
-		if domains[i].Port == 0 {
-			domains[i].Port = 443
+	for i := 0; i < len(tmp); i++ {
+		if tmp[i].Port == 0 {
+			tmp[i].Port = 443
+		}
+
+		if tmp[i].Name != "" {
+			domains = append(domains, tmp[i])
 		}
 	}
 

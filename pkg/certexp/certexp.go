@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -40,8 +41,6 @@ Resolves DNS records for domain.
 - IPv6: when false resolves only IPv4 addresses.
 */
 func (d *Domain) Resolve(IPv6 bool) error {
-	var error ExpirationError
-
 	if d.Name == "" {
 		return nil
 	}
@@ -50,11 +49,8 @@ func (d *Domain) Resolve(IPv6 bool) error {
 		addresses, err := net.LookupIP(d.Name)
 
 		if err != nil {
-			error.Code = 4
-			error.Message = err.Error()
 			d.Addresses = append(d.Addresses, nil)
-
-			return &error
+			return err
 		}
 
 		for _, addr := range addresses {
@@ -117,13 +113,20 @@ func (check *Check) Process(timeout int) error {
 	error.Code = 0
 	error.Message = ""
 
-	// conn, err := tls.Dial("tcp", fmt.Sprintf("[%s]:%d", check.Host.Address.String(), check.Host.Port), cfg)
 	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: time.Duration(timeout) * time.Second}, "tcp", fmt.Sprintf("[%s]:%d", check.Host.Address.String(), check.Host.Port), cfg)
+
 	if err != nil {
 		switch {
-		case strings.Contains(err.Error(), "connect: network is unreachable"):
+		case strings.Contains(err.Error(), "connect: "):
 			error.Code = 3
-			error.Message = "connect: network is unreachable"
+
+			re := regexp.MustCompile(`.+ (connect: .+)`)
+			match := re.FindStringSubmatch(err.Error())
+
+			error.Message = match[1]
+		case strings.Contains(err.Error(), "i/o timeout"):
+			error.Code = 3
+			error.Message = "i/o timeout"
 		case strings.Contains(err.Error(), "tls: failed to verify certificate:"):
 			error.Code = 2
 			error.Message = strings.Replace(err.Error(), "tls: failed to verify certificate: ", "", 1)

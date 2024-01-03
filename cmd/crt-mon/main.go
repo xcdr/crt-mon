@@ -92,7 +92,7 @@ func (s *metricsServer) loadConfig() error {
 
 	if err == nil {
 		s.domains = *domains
-		log.Printf("Loaded %d hosts from: %s", cap(s.domains), *s.options.ConfigFile)
+		log.Printf("Loaded %d hosts from: %s", len(s.domains), *s.options.ConfigFile)
 	}
 
 	return err
@@ -113,7 +113,13 @@ func (s *metricsServer) startWorker(interval int) error {
 			s.checkError.Reset()
 
 			for elem, domain := range s.domains {
-				domain.Resolve(*s.options.CheckIPv6)
+				var resolveErrorCode int = 0
+
+				if err := domain.Resolve(*s.options.CheckIPv6); err!= nil {
+					resolveErrorCode = 4  // domain resolve error
+				}
+
+				s.checkError.WithLabelValues(domain.Name, "unknown").Set(float64(resolveErrorCode))
 
 				for _, addr := range domain.Addresses {
 					var check *certexp.Check = certexp.NewCheck(certexp.HostInfo{Name: domain.Name, Address: addr, Port: domain.Port})
@@ -124,12 +130,10 @@ func (s *metricsServer) startWorker(interval int) error {
 
 					for _, res := range check.Result {
 						address_label := res.Address.String()
-						if res.Address == nil {
-							address_label = "unknown"
+						if res.Address != nil {
+							s.elapsedDays.WithLabelValues(check.Host.Name, address_label).Set(float64(res.Expiry.Days))
+							s.checkError.WithLabelValues(check.Host.Name, address_label).Set(float64(res.Error.Code))
 						}
-
-						s.elapsedDays.WithLabelValues(check.Host.Name, address_label).Set(float64(res.Expiry.Days))
-						s.checkError.WithLabelValues(check.Host.Name, address_label).Set(float64(res.Error.Code))
 					}
 
 					counter = elem + 1
