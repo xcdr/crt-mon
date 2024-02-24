@@ -1,6 +1,6 @@
 zabbix_export:
   version: '6.0'
-  date: '2023-08-30T19:04:28Z'
+  date: '2024-01-31T21:44:42Z'
   groups:
     - uuid: 7df96b18c230490a9a0a9e2307226338
       name: Templates
@@ -46,7 +46,9 @@ zabbix_export:
                 key: crt-mon_metrics
               trigger_prototypes:
                 - uuid: 388eb75df42e4eb884da7011bd7520d5
-                  expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])<>0'
+                  expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}],#6)<>0'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])=0'
                   name: 'Certificate check error for: {#HOST} on: {#ADDRESS}'
                   opdata: '{ITEM.LASTVALUE1}'
                   priority: HIGH
@@ -72,7 +74,8 @@ zabbix_export:
                   priority: DISASTER
                   dependencies:
                     - name: 'Certificate check error for: {#HOST} on: {#ADDRESS}'
-                      expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])<>0'
+                      expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}],#6)<>0'
+                      recovery_expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])=0'
                 - uuid: ce787c29c08c4fc386f172abc09f94bd
                   expression: 'last(/CRT-MON/crt_mon[elapsed_days:{#ADDRESS}_{#HOST}])<{$CRT_MON.HIGH}'
                   name: 'Certificate expiry days < {$CRT_MON.HIGH} for: {#HOST} on: {#ADDRESS}'
@@ -80,7 +83,8 @@ zabbix_export:
                   priority: HIGH
                   dependencies:
                     - name: 'Certificate check error for: {#HOST} on: {#ADDRESS}'
-                      expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])<>0'
+                      expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}],#6)<>0'
+                      recovery_expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])=0'
                 - uuid: 8f0f7e6a8a984c0bb24d6357e1559d7d
                   expression: 'last(/CRT-MON/crt_mon[elapsed_days:{#ADDRESS}_{#HOST}])<{$CRT_MON.WARN}'
                   name: 'Certificate expiry days < {$CRT_MON.WARN} for: {#HOST} on: {#ADDRESS}'
@@ -88,7 +92,8 @@ zabbix_export:
                   priority: WARNING
                   dependencies:
                     - name: 'Certificate check error for: {#HOST} on: {#ADDRESS}'
-                      expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])<>0'
+                      expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}],#6)<>0'
+                      recovery_expression: 'last(/CRT-MON/crt_mon[check_error:{#ADDRESS}_{#HOST}])=0'
           master_item:
             key: crt-mon_metrics
           lld_macro_paths:
